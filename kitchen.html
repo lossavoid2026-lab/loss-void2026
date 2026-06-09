@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キッチンディスプレイ - 店舗用</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'MS Gothic', 'Yu Gothic', sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .header-bg {
+            background-color: #ffedcc;
+        }
+
+        .btn-yellow {
+            background-color: #ffcc00;
+            border: 1px solid #333;
+        }
+
+        .order-card {
+            border: 1px solid #333;
+            margin-bottom: 4px;
+        }
+
+        .bg-blue-light {
+            background-color: #d1e9ff;
+        }
+
+        .bg-orange-light {
+            background-color: #ffc299;
+        }
+
+        .badge-red {
+            background-color: #ff0000;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-cyan {
+            background-color: #00ffff;
+            color: black;
+            padding: 0 4px;
+        }
+
+        .badge-warning {
+            background-color: #ffff00;
+            color: #ff0000;
+            font-weight: bold;
+            padding: 0 2px;
+        }
+
+        .right-panel {
+            background-color: #fff9e6;
+            border-left: 2px dashed #333;
+        }
+
+        .text-shadow-black {
+            color: white;
+            background-color: black;
+            padding: 0 4px;
+        }
+
+        .scroll-bar {
+            width: 12px;
+            background: #ccc;
+            border: 1px solid #333;
+        }
+
+        #news-btn,
+        #completed-btn,
+        #shift-btn,
+        #delete-btn,
+        #organize-btn {
+            font-size: 20px;
+        }
+
+        #table-number {
+            color: #767676;
+            font-size: 23px;
+        }
+    </style>
+    <script type="module">
+        import { initializeApp }
+            from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
+        import {
+            getFirestore,
+            collection,
+            onSnapshot,
+            orderBy,
+            query,
+            getDocs,
+            deleteDoc,
+            doc
+        }
+            from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA11hBtKkMkgzmng6Gn4KO98ZKlwJeEqxI",
+            authDomain: "lossavoid-d3205.firebaseapp.com",
+            projectId: "lossavoid-d3205",
+            storageBucket: "lossavoid-d3205.firebasestorage.app",
+            messagingSenderId: "775487807173",
+            appId: "1:775487807173:web:b0b53a07284ef3917d5aac"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const cookMap = {};
+
+        const orderContainer =
+            document.getElementById("orderContainer");
+
+        const q = query(
+            collection(db, "orders"),
+            orderBy("createdAt", "desc")
+        );
+
+        async function loadCookList() {
+
+            const snapshot =
+                await getDocs(collection(db, "CookList"));
+
+            snapshot.forEach(doc => {
+
+                const data = doc.data();
+
+                cookMap[String(data.code)] = data;
+
+            });
+
+            console.log("CookList読込完了", cookMap);
+
+        }
+
+        await loadCookList();
+
+        onSnapshot(
+            q,
+            (snapshot) => {
+
+                orderContainer.innerHTML = "";
+
+                snapshot.forEach((doc) => {
+
+                    const order = doc.data();
+
+                    const time =
+                        order.createdAt?.toDate()
+                            ?.toLocaleTimeString("ja-JP", {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                            }) || "--:--";
+
+                    let itemsHtml = "";
+
+                    order.items.forEach(item => {
+
+                        const cookInfo =
+                            cookMap[String(item.code)];
+
+                        // CookListに存在しない場合
+                        if (!cookInfo) return;
+
+                        // Kitchen・Heat以外は表示しない
+                        if (
+                            cookInfo.section !== "kitchen" &&
+                            cookInfo.section !== "heat" &&
+                            cookInfo.section !== "Flor"
+                        ) {
+                            return;
+                        }
+
+                        const cookTime =
+                            cookInfo.cookTime ?? "-";
+
+                        itemsHtml += `
+                    <div class="flex justify-between text-lg">
+                        <span>
+                            ${item.qty} ${item.name}
+                        </span>
+
+                        <span class="badge-red">
+                            ${cookTime}
+                        </span>
+                    </div>
+                    `;
+                    });
+                    if (itemsHtml === "") {
+                        return;
+                    }
+                    orderContainer.innerHTML += `
+                <div class="order-card bg-blue-light p-3">
+
+                    <div class="flex justify-between mb-2">
+
+                        <span id="table-number" class="text-4xl font-bold">
+                            ${order.table}卓
+                        </span>
+
+                        <span>
+                            ${time}
+                        </span>
+
+                    </div>
+
+                    ${itemsHtml}
+
+                </div>
+                `;
+
+                });
+
+            }
+        );
+
+        document.getElementById('delete-btn').addEventListener('click', async () => {
+
+            if (!confirm("全ての注文を削除しますか？")) {
+                return;
+            }
+
+            try {
+
+                const snapshot =
+                    await getDocs(collection(db, "orders"));
+
+                const promises = [];
+
+                snapshot.forEach((document) => {
+
+                    promises.push(
+                        deleteDoc(
+                            doc(db, "orders", document.id)
+                        )
+                    );
+
+                });
+
+                await Promise.all(promises);
+
+                alert("全て削除しました");
+
+            } catch (error) {
+
+                console.error(error);
+                alert("削除に失敗しました");
+
+            }
+
+        });
+    </script>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden">
+    <!-- ヘッダー -->
+    <header class="header-bg p-1 flex justify-between items-center border-b border-black">
+        <div class="flex space-x-2">
+            <button id="news-btn" class="btn-yellow px-4 py-1 font-bold">速報</button>
+            <button id="completed-btn" class="btn-yellow px-4 py-1 font-bold">提供済</button>
+            <button id="shift-btn" class="btn-yellow px-4 py-1 font-bold">シフト確認</button>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button id="delete-btn" class="btn-yellow px-6 py-1 font-bold">全消去</button>
+            <button id="organize-btn" class="btn-yellow px-6 py-1 font-bold">整理</button>
+            <span class="text-2xl font-mono" id="current-time">hh:mm:ss</span>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- 左パネル: 注文リスト -->
+        <div class="w-1/2 p-1 overflow-y-auto border-r border-black">
+            <div id="orderContainer"></div>
+        </div>
+
+        <!-- 右パネル: 整理後リスト -->
+        <div class="flex-1 right-panel p-1 overflow-y-auto">
+            <div id="organizedOrders"></div>
+        </div>
+    </div>
+
+    <script>
+        // 時計の更新
+        function updateTime() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('current-time').innerText = `${h}:${m}:${s}`;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 整理ボタンのダミーアクション
+        document.getElementById('organize-btn').addEventListener('click', () => {
+            alert('Firebaseからデータを抽出し、調理順に整理します。');
+        });
+
+        // Firebase連携のイメージ (店舗側)
+        /*
+        db.collection("orders").where("status", "==", "new")
+        .onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    console.log("新しい注文:", change.doc.data());
+                    // ここでDOMを生成して左パネルに追加する処理を記述
+                }
+            });
+        });
+        */
+    </script>
+</body>
+
+</html>

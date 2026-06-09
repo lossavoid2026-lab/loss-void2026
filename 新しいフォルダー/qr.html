@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR注文システム</title>
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+        }
+
+        body{
+            font-family:sans-serif;
+            background:#f5f5f5;
+            color:#333;
+        }
+
+        header{
+            background:#ff9800;
+            color:white;
+            text-align:center;
+            padding:18px;
+            font-size:24px;
+            font-weight:bold;
+            box-shadow:0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .table-number{
+            text-align:center;
+            margin-top:15px;
+            font-size:18px;
+            font-weight:bold;
+        }
+
+        .menu-container{
+            width:95%;
+            max-width:700px;
+            margin:20px auto;
+            display:grid;
+            gap:20px;
+        }
+
+        .menu-card{
+            background:white;
+            border-radius:15px;
+            overflow:hidden;
+            box-shadow:0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .menu-card img{
+            width:100%;
+            height:220px;
+            object-fit:cover;
+        }
+
+        .menu-info{
+            padding:15px;
+        }
+
+        .menu-name{
+            font-size:22px;
+            font-weight:bold;
+            margin-bottom:10px;
+        }
+
+        .menu-price{
+            color:#ff5722;
+            font-size:20px;
+            margin-bottom:15px;
+        }
+
+        .count-area{
+            display:flex;
+            align-items:center;
+            gap:10px;
+        }
+
+        .count-area input{
+            width:80px;
+            padding:10px;
+            font-size:18px;
+            text-align:center;
+        }
+
+        .order-btn{
+            width:100%;
+            border:none;
+            background:#ff9800;
+            color:white;
+            font-size:20px;
+            padding:15px;
+            margin-top:15px;
+            border-radius:10px;
+            cursor:pointer;
+            transition:0.2s;
+        }
+
+        .order-btn:hover{
+            opacity:0.8;
+        }
+
+        .success{
+            background:#4caf50 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        QR注文システム
+    </header>
+
+    <div class="table-number">
+        卓番：10
+    </div>
+
+    <div class="menu-container">
+
+        <!-- 商品1 -->
+        <div class="menu-card">
+
+            <img src="https://picsum.photos/600/400?1">
+
+            <div class="menu-info">
+
+                <div class="menu-name">
+                    甘味チキン
+                </div>
+
+                <div class="menu-price">
+                    ¥580
+                </div>
+
+                <div class="count-area">
+                    個数：
+                    <input type="number" min="1" value="1" id="count1">
+                </div>
+
+                <button class="order-btn"
+                        onclick="sendOrder('甘味チキン', 580, 'count1', this)">
+                    注文する
+                </button>
+
+            </div>
+        </div>
+
+        <!-- 商品2 -->
+        <div class="menu-card">
+
+            <img src="https://picsum.photos/600/400?2">
+
+            <div class="menu-info">
+
+                <div class="menu-name">
+                    豆サラダ
+                </div>
+
+                <div class="menu-price">
+                    ¥420
+                </div>
+
+                <div class="count-area">
+                    個数：
+                    <input type="number" min="1" value="1" id="count2">
+                </div>
+
+                <button class="order-btn"
+                        onclick="sendOrder('豆サラダ', 420, 'count2', this)">
+                    注文する
+                </button>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+
+        // 卓番
+        const tableNumber = 10;
+
+        // 注文送信
+        async function sendOrder(name, price, countId, button){
+
+            const count =
+                document.getElementById(countId).value;
+
+            const orderData = {
+                table: tableNumber,
+                item: name,
+                price: price,
+                count: Number(count),
+                createdAt: Date.now(),
+                status: "waiting"
+            };
+
+            console.log("送信データ", orderData);
+
+            /*
+            Firebase接続時はここで送信
+
+            push(ref(db, "orders"), orderData);
+
+            */
+
+            button.innerText = "注文完了";
+            button.classList.add("success");
+
+            setTimeout(() => {
+                button.innerText = "注文する";
+                button.classList.remove("success");
+            }, 2000);
+        }
+
+    </script>
+
+</body>
+</html>
