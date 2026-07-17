@@ -122,7 +122,7 @@
         .nav-btn i { font-size: 17px; }
         .nav-btn.active { color: #1565c0; border-top-color: #1565c0; background-color: #eaf3fc; }
 
-        /* ---- 使用者コード・卓番 設定バー ---- */
+        /* ---- 卓番・人数 設定バー ---- */
         #staff-setup-bar {
             background: #eaf3fc;
             border-bottom: 1px solid #bcdcf7;
@@ -529,7 +529,7 @@
 <div id="view-home" class="page">
     <div class="home-header">
         <div class="htitle"><i class="fa-solid fa-user-tie"></i> 従業員専用オーダー端末</div>
-        <div class="hsub" id="home-sub">使用者コード: — / 卓番: —</div>
+        <div class="hsub" id="home-sub">卓番: — / 人数: —名</div>
     </div>
     <div class="home-body">
         <div class="home-page active" id="home-page-1">
@@ -565,15 +565,15 @@
         <span class="table-chip" id="table-chip">テーブル —</span>
     </div>
 
-    <!-- 使用者コード・卓番 入力バー（常時変更可能） -->
+    <!-- 卓番・人数 入力バー（常時変更可能） -->
     <div id="staff-setup-bar">
-        <div class="setup-field">
-            <label><i class="fa-solid fa-id-badge"></i> 使用者コード</label>
-            <div id="staff-code-display" class="staff-display empty">未設定</div>
-        </div>
         <div class="setup-field">
             <label for="table-number-input"><i class="fa-solid fa-chair"></i> 卓番</label>
             <input type="text" id="table-number-input" placeholder="例: 01 / 01-1" oninput="onStaffInfoChange()" onblur="normalizeStaffTableNumber()">
+        </div>
+        <div class="setup-field">
+            <label for="guest-count-input"><i class="fa-solid fa-users"></i> 人数</label>
+            <input type="number" id="guest-count-input" placeholder="例: 2" min="1" max="99" inputmode="numeric" oninput="onStaffInfoChange()" onblur="normalizeGuestCount()">
         </div>
     </div>
 
@@ -596,7 +596,7 @@
         <span class="table-chip" id="table-chip2">テーブル —</span>
     </div>
     <div class="p-3 bg-blue-50 border-b border-blue-100 text-sm font-bold text-blue-900" id="cart-staff-info">
-        使用者コード: — / 卓番: —
+        卓番: — / 人数: —名
     </div>
     <div class="flex-1 overflow-y-auto p-3" id="cart-scroll">
         <div class="cart-section-title">
@@ -816,23 +816,19 @@
 </script>
 
 <script>
-    // ---- 使用者コード・卓番 ----
-    // 使用者コードは「担当者切替」画面で設定し、注文タブでは表示のみ行う。
+    // ---- 卓番・人数 ----
     let staffCode = localStorage.getItem('staffCode') || localStorage.getItem('lastStaffCode') || '';
     let tableNumber = localStorage.getItem('staffTableNumber') || '';
+    let guestCount = localStorage.getItem('guestCount') || '';
 
     document.getElementById('table-number-input').value = tableNumber;
+    document.getElementById('guest-count-input').value = guestCount;
 
     function setActiveStaffCode(code) {
         staffCode = String(code || '').trim();
         localStorage.setItem('staffCode', staffCode);
         if (staffCode) localStorage.setItem('lastStaffCode', staffCode);
 
-        const display = document.getElementById('staff-code-display');
-        if (display) {
-            display.textContent = staffCode || '未設定';
-            display.classList.toggle('empty', !staffCode);
-        }
         const currentCard = document.getElementById('staff-current-card');
         if (currentCard) currentCard.textContent = staffCode || '未設定';
         updateTableChips();
@@ -840,7 +836,9 @@
 
     function onStaffInfoChange() {
         tableNumber = document.getElementById('table-number-input').value.trim();
+        guestCount = document.getElementById('guest-count-input').value.trim();
         localStorage.setItem('staffTableNumber', tableNumber);
+        localStorage.setItem('guestCount', guestCount);
         updateTableChips();
     }
 
@@ -863,15 +861,34 @@
         return normalized;
     }
 
+    function normalizeGuestCount() {
+        const input = document.getElementById('guest-count-input');
+        const value = input.value.trim();
+        if (!value) {
+            onStaffInfoChange();
+            return '';
+        }
+        const count = Number(value);
+        if (!Number.isInteger(count) || count < 1 || count > 99) {
+            alert('人数は1〜99の範囲で入力してください。');
+            input.focus();
+            input.select();
+            return null;
+        }
+        input.value = String(count);
+        onStaffInfoChange();
+        return count;
+    }
+
     function updateTableChips() {
         const label = tableNumber ? `テーブル ${tableNumber}` : 'テーブル —';
         document.querySelectorAll('#table-chip, #table-chip2').forEach(el => {
             el.textContent = label;
         });
         document.getElementById('cart-staff-info').textContent =
-            `使用者コード: ${staffCode || '—'} / 卓番: ${tableNumber || '—'}`;
+            `卓番: ${tableNumber || '—'} / 人数: ${guestCount || '—'}名`;
         document.getElementById('home-sub').textContent =
-            `使用者コード: ${staffCode || '—'} / 卓番: ${tableNumber || '—'}`;
+            `卓番: ${tableNumber || '—'} / 人数: ${guestCount || '—'}名`;
     }
     setActiveStaffCode(staffCode);
 
@@ -1278,15 +1295,10 @@
     }
 
     // ---- 注文送信 ----
-    // orderMethod には「使用者コード」の値をそのまま入れる（index.htmlの'SELF'とは異なる区分）
+    // orderMethod は従業員端末からの注文を示す区分として保存する。
     async function submitOrder() {
         if (cart.length === 0) {
             showToast('注文かごが空です');
-            return;
-        }
-        if (!staffCode) {
-            showToast('⚠️ 担当者切替で担当者を設定してください');
-            showPage('view-staff');
             return;
         }
         if (!tableNumber) {
@@ -1300,6 +1312,11 @@
             showPage('view-menu');
             return;
         }
+        const normalizedGuestCount = normalizeGuestCount();
+        if (normalizedGuestCount === null) {
+            showPage('view-menu');
+            return;
+        }
         const btn = document.getElementById('submit-btn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 送信中...';
@@ -1308,8 +1325,9 @@
                 window.fbCollection(window.db, 'orders'),
                 {
                     table: normalizedTable,
+                    guestCount: normalizedGuestCount || null,
                     status: 'waiting',
-                    orderMethod: staffCode,
+                    orderMethod: staffCode || 'STAFF',
                     createdAt: window.fbServerTimestamp(),
                     items: cart
                 }
@@ -1881,6 +1899,7 @@
     window.showToast = showToast;
     window.onStaffInfoChange = onStaffInfoChange;
     window.normalizeStaffTableNumber = normalizeStaffTableNumber;
+    window.normalizeGuestCount = normalizeGuestCount;
     window.renderStockList = renderStockList;
     window.updateStockEditQty = updateStockEditQty;
     window.toggleStockSoldOut = toggleStockSoldOut;
